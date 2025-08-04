@@ -16,7 +16,7 @@ pub type VikingChessResult<T> = Result<T, VikingChessError>;
 pub struct Bitboard([u128; Piece::Length as usize]);
 
 impl Bitboard {
-    pub const BOARD_LENGTH: usize = 11;
+    pub const BOARD_LENGTH: usize = 9;
     pub const TOTAL_SQUARES: usize = Bitboard::BOARD_LENGTH * Bitboard::BOARD_LENGTH;
 
     pub fn iter<'a>(&'a self) -> BitboardIter<'a> {
@@ -238,7 +238,7 @@ impl Default for Board {
 }
 
 impl Board {
-    pub const STARTING_FEN: &'static str = "4AAA4/5A5/92/5D5/A4D4A/AA1DDKDD1AA/A4D4A/5D5/92/5A5/4AAA4 B";
+    pub const STARTING_FEN: &'static str = "3AAA3/4A4/4D4/A3D3A/AADDKDDAA/A3D3A/4D4/4A4/3AAA3 B";
     pub fn new() -> Self {
         Self::default()
     }
@@ -325,8 +325,8 @@ mod tests {
         assert_eq!(board[Piece::Defender], 0);
         assert_eq!(board[Piece::Attacker], 0);
 
-        board[Piece::King] |= Square::try_from((5, 5))?.bit();
-        assert_eq!(board[Piece::King], 1 << 60);
+        board[Piece::King] |= Square::try_from((4, 4))?.bit();
+        assert_eq!(board[Piece::King], 1 << 40);
         println!("Board:\n{board}");
         Ok(())
     }
@@ -344,11 +344,11 @@ mod tests {
         let initial_hash = board.zobrist_hash;
 
         println!("Board 1:\n{board}");
-        board.move_piece(Piece::King, 60.try_into()?, 0.try_into()?)?;
+        board.move_piece(Piece::King, 40.try_into()?, 0.try_into()?)?;
         assert_ne!(board.zobrist_hash, initial_hash);
         println!("Board 2:\n{board}");
 
-        board.move_piece(Piece::King, 0.try_into()?, 60.try_into()?)?;
+        board.move_piece(Piece::King, 0.try_into()?, 40.try_into()?)?;
         assert_eq!(board.zobrist_hash, initial_hash);
         println!("Board 3:\n{board}");
         Ok(())
@@ -378,7 +378,7 @@ mod tests {
         let square = Square::try_from(square_index)?;
 
         assert_eq!(square.row, 1);
-        assert_eq!(square.col, 4);
+        assert_eq!(square.col, 6);
         Ok(())
     }
 
@@ -396,9 +396,9 @@ mod tests {
     fn test_bitboard_iter() -> VikingChessResult<()> {
         let mut bitboard = Bitboard::default();
         let squares = [
-            Square::try_from((5, 5))?,
+            Square::try_from((4, 4))?,
             Square::try_from((0, 0))?,
-            Square::try_from((10, 10))?,
+            Square::try_from((8, 8))?,
         ];
             
         bitboard[Piece::King] |= squares[0].bit();
