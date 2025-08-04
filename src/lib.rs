@@ -18,6 +18,48 @@ pub struct Bitboard([u128; Piece::Length as usize]);
 impl Bitboard {
     pub const BOARD_LENGTH: usize = 11;
     pub const TOTAL_SQUARES: usize = Bitboard::BOARD_LENGTH * Bitboard::BOARD_LENGTH;
+
+    pub fn iter<'a>(&'a self) -> BitboardIter<'a> {
+        BitboardIter::new(&self)
+    }
+
+    pub fn all(&self) -> u128 {
+        Piece::PIECES.into_iter().map(Piece::from).fold(0, |a, b| a | self[b])
+    }
+}
+
+pub struct BitboardIter<'a> {
+    counter: usize,
+    bitboard: &'a Bitboard,
+}
+
+impl<'a> BitboardIter<'a> {
+    pub fn new(bitboard: &'a Bitboard) -> Self {
+        Self { counter: 0, bitboard }
+    }
+}
+
+impl<'a> Iterator for BitboardIter<'a> {
+    type Item = (Piece, Square);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut square = Square::try_from(self.counter).ok()?;
+        let mut piece = None;
+
+        while piece.is_none() {
+            let pieces = Piece::PIECES.map(Piece::from);
+
+            piece = pieces.into_iter().find(|&p| (self.bitboard[p] & square.bit()) > 0);
+
+            if piece.is_none() {
+                self.counter += 1;
+                square = Square::try_from(self.counter).ok()?;
+            }
+        }
+
+        self.counter += 1;
+        return Some((piece?, square));
+    }
 }
 
 impl Display for Bitboard {
@@ -74,6 +116,10 @@ pub enum Piece {
     Length,
 }
 
+impl Piece {
+    pub const PIECES: [char; 3] = ['A', 'D', 'K'];
+}
+
 impl From<char> for Piece {
     fn from(value: char) -> Self {
         match value {
@@ -119,9 +165,10 @@ impl Index<(Piece, Square)> for ZobristTable {
     }
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Square {
-    row: u8,
-    col: u8,
+    pub row: u8,
+    pub col: u8,
 }
 
 impl Square {
@@ -154,6 +201,18 @@ impl TryFrom<(u8, u8)> for Square {
     }
 }
 
+impl TryFrom<(f32, f32)> for Square {
+    type Error = VikingChessError;
+
+    fn try_from(value: (f32, f32)) -> Result<Self, Self::Error> {
+        if value.0 < 0. || value.1 < 0. {
+            return Err(format!("Invalid square position ({}, {})", value.0, value.1).into());
+        }
+
+        Square::try_from((value.0 as u8, value.1 as u8))
+    }
+}
+
 impl TryFrom<usize> for Square {
     type Error = VikingChessError;
 
@@ -175,10 +234,16 @@ pub struct Board {
     zobrist_hash: u64,
 }
 
+impl Default for Board {
+    fn default() -> Self {
+        Self::from_fen(Self::STARTING_FEN).expect("Invalid starting FEN.")
+    }
+}
+
 impl Board {
     pub const STARTING_FEN: &'static str = "4AAA4/5A5/92/5D5/A4D4A/AA1DDKDD1AA/A4D4A/5D5/92/5A5/4AAA4 B";
     pub fn new() -> Self {
-        Self::from_fen(Self::STARTING_FEN).expect("Invalid starting FEN.")
+        Self::default()
     }
 
     pub fn from_fen(str: &'static str) -> VikingChessResult<Self> {
@@ -211,18 +276,14 @@ impl Board {
         })
     }
 
+    pub fn iter_bitboard<'a>(&'a self) -> BitboardIter<'a> {
+        self.bitboard.iter()
+    }
+
     fn calculate_hash(bitboard: &Bitboard, zobrist_table: &ZobristTable) -> u64 {
         let mut hash = 0;
-        let pieces = [Piece::King, Piece::Defender, Piece::Attacker];
-
-        for &piece in pieces.iter() {
-            let mut current_bitboard = bitboard[piece];
-            while current_bitboard != 0 {
-                let square_index = current_bitboard.trailing_zeros() as usize;
-                let square = Square::try_from(square_index).unwrap();
-                hash ^= zobrist_table[(piece, square)];
-                current_bitboard &= !(1 << square_index);
-            }
+        for (piece, square) in bitboard.iter() {
+            hash ^= zobrist_table[(piece, square)];
         }
 
         hash
@@ -321,6 +382,27 @@ mod tests {
 
         assert_eq!(square.row, 1);
         assert_eq!(square.col, 4);
+        Ok(())
+    }
+
+    #[test]
+    fn test_bitboard_iter() -> VikingChessResult<()> {
+        let mut bitboard = Bitboard::default();
+        let squares = [
+            Square::try_from((5, 5))?,
+            Square::try_from((0, 0))?,
+            Square::try_from((10, 10))?,
+        ];
+            
+        bitboard[Piece::King] |= squares[0].bit();
+        bitboard[Piece::Attacker] |= squares[1].bit();
+        bitboard[Piece::Defender] |= squares[2].bit();
+
+        let mut iter = bitboard.iter();
+        assert_eq!(iter.next(), Some((Piece::Attacker, squares[1])));
+        assert_eq!(iter.next(), Some((Piece::King, squares[0])));
+        assert_eq!(iter.next(), Some((Piece::Defender, squares[2])));
+        assert_eq!(iter.next(), None);
         Ok(())
     }
 }
