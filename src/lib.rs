@@ -66,17 +66,14 @@ impl Display for Bitboard {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         for i in 0..Bitboard::TOTAL_SQUARES {
             let col = i % Bitboard::BOARD_LENGTH;
+            let ch = match i {
+                i if (self[Piece::King] >> i) & 1 == 1 => "K",
+                i if (self[Piece::Defender] >> i) & 1 == 1 => "D",
+                i if (self[Piece::Attacker] >> i) & 1 == 1 => "A",
+                _ => ".",
+            };
 
-            write!(
-                f,
-                "{}",
-                match i {
-                    i if (self[Piece::King] >> i) & 1 == 1 => "K",
-                    i if (self[Piece::Defender] >> i) & 1 == 1 => "D",
-                    i if (self[Piece::Attacker] >> i) & 1 == 1 => "A",
-                    _ => ".",
-                }
-            )?;
+            write!(f, "{}", ch)?;
 
             if col + 1 == Bitboard::BOARD_LENGTH {
                 writeln!(f)?;
@@ -289,12 +286,22 @@ impl Board {
         hash
     }
 
-    pub fn move_piece(&mut self, piece: Piece, start_square: Square, end_square: Square) {
+    pub fn move_piece(&mut self, piece: Piece, start_square: Square, end_square: Square) -> VikingChessResult<()> {
+        if self.bitboard[piece] & start_square.bit() <= 0 {
+            panic!("There is no {piece:?} in start_square {start_square:?}");
+        }
+
+        if self.bitboard.all() & end_square.bit() > 0 {
+            return Err(format!("There is already a {piece:?} in end_square {end_square:?}").into());
+        }
+
         self.bitboard[piece] &= !(start_square.bit());
         self.bitboard[piece] |= end_square.bit();
 
         self.zobrist_hash ^= self.zobrist_table[(piece, start_square)];
         self.zobrist_hash ^= self.zobrist_table[(piece, end_square)];
+
+        Ok(())
     }
 }
 
@@ -337,11 +344,11 @@ mod tests {
         let initial_hash = board.zobrist_hash;
 
         println!("Board 1:\n{board}");
-        board.move_piece(Piece::King, 60.try_into()?, 0.try_into()?);
+        board.move_piece(Piece::King, 60.try_into()?, 0.try_into()?)?;
         assert_ne!(board.zobrist_hash, initial_hash);
         println!("Board 2:\n{board}");
 
-        board.move_piece(Piece::King, 0.try_into()?, 60.try_into()?);
+        board.move_piece(Piece::King, 0.try_into()?, 60.try_into()?)?;
         assert_eq!(board.zobrist_hash, initial_hash);
         println!("Board 3:\n{board}");
         Ok(())
