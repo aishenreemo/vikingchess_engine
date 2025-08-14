@@ -5,6 +5,7 @@ use std::fmt::Formatter;
 use crate::VikingChessResult;
 use crate::bitboard::Bitboard;
 use crate::bitboard::BitboardIter;
+use crate::bitboard::Mask;
 use crate::piece::Piece;
 use crate::square::Square;
 use crate::zobrist::ZobristTable;
@@ -23,31 +24,15 @@ impl Default for Board {
 
 impl Board {
     pub const STARTING_FEN: &'static str = "3AAA3/4A4/4D4/A3D3A/AADDKDDAA/A3D3A/4D4/4A4/3AAA3 B";
+    pub const EMPTY_FEN: &'static str = "9/9/9/9/9/9/9/9/9 B";
+
     pub fn new() -> Self {
         Self::default()
     }
 
     pub fn from_fen(str: &'static str) -> VikingChessResult<Self> {
-        let mut bitboard = Bitboard::default();
+        let bitboard = Bitboard::from_fen(str)?;
         let zobrist_table = ZobristTable::new();
-
-        let mut col = 0;
-        let mut row = 0;
-        const BOARD_LENGTH: u8 = Bitboard::BOARD_LENGTH as u8;
-        for ch in str.chars() {
-            if matches!(ch, 'A' | 'D' | 'K') {
-                bitboard[Piece::from(ch)] |= Square::try_from((col, row))?.bit();
-                col += 1;
-            } else if let Some(digit) = ch.to_digit(10) {
-                col += digit as u8;
-            } else if (ch == '/' && col % BOARD_LENGTH != 0) || col > BOARD_LENGTH {
-                return Err(format!("Invalid notation {str}.").into());
-            } else if ch == '/' {
-                row += 1;
-                col = 0;
-            }
-        }
-
         let initial_hash = Board::calculate_hash(&bitboard, &zobrist_table);
 
         Ok(Self {
@@ -71,16 +56,16 @@ impl Board {
     }
 
     pub fn move_piece(&mut self, piece: Piece, start_square: Square, end_square: Square) -> VikingChessResult<()> {
-        if self.bitboard[piece] & start_square.bit() <= 0 {
+        if self.bitboard[piece] & start_square.mask() <= Mask(0) {
             panic!("There is no {piece:?} in start_square {start_square:?}");
         }
 
-        if self.bitboard.all() & end_square.bit() > 0 {
+        if self.bitboard.all() & end_square.mask() > Mask(0) {
             return Err(format!("There is already a {piece:?} in end_square {end_square:?}").into());
         }
 
-        self.bitboard[piece] &= !(start_square.bit());
-        self.bitboard[piece] |= end_square.bit();
+        self.bitboard[piece] &= !(start_square.mask());
+        self.bitboard[piece] |= end_square.mask();
 
         self.zobrist_hash ^= self.zobrist_table[(piece, start_square)];
         self.zobrist_hash ^= self.zobrist_table[(piece, end_square)];

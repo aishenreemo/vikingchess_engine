@@ -1,7 +1,10 @@
+use serde::Serialize;
+
 use crate::VikingChessError;
 use crate::bitboard::Bitboard;
+use crate::bitboard::Mask;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Serialize)]
 pub struct Square {
     pub row: u8,
     pub col: u8,
@@ -16,8 +19,8 @@ impl Square {
         self.row as usize * Bitboard::BOARD_LENGTH + self.col as usize
     }
 
-    pub fn bit(&self) -> u128 {
-        1 << self.index() as u128
+    pub fn mask(&self) -> Mask {
+        Mask(1 << self.index())
     }
 }
 

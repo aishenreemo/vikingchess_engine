@@ -15,7 +15,7 @@ fn bitboard_test() -> VikingChessResult<()> {
     assert_eq!(board[Piece::Defender], 0);
     assert_eq!(board[Piece::Attacker], 0);
 
-    board[Piece::King] |= Square::try_from((4, 4))?.bit();
+    board[Piece::King] |= Square::try_from((4, 4))?.mask();
     assert_eq!(board[Piece::King], 1 << 40);
     println!("Board:\n{board}");
     Ok(())
@@ -91,9 +91,9 @@ fn test_bitboard_iter() -> VikingChessResult<()> {
         Square::try_from((8, 8))?,
     ];
 
-    bitboard[Piece::King] |= squares[0].bit();
-    bitboard[Piece::Attacker] |= squares[1].bit();
-    bitboard[Piece::Defender] |= squares[2].bit();
+    bitboard[Piece::King] |= squares[0].mask();
+    bitboard[Piece::Attacker] |= squares[1].mask();
+    bitboard[Piece::Defender] |= squares[2].mask();
 
     let mut iter = bitboard.iter();
     assert_eq!(iter.next(), Some((Piece::Attacker, squares[1])));

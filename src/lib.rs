@@ -14,6 +14,7 @@ mod tests;
 
 pub mod prelude {
     pub use crate::bitboard::Bitboard;
+    pub use crate::bitboard::Mask;
     pub use crate::board::Board;
     pub use crate::piece::Piece;
     pub use crate::square::Square;

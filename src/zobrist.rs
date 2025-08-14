@@ -1,8 +1,8 @@
-use rand::RngCore;
 use std::ops::Deref;
 use std::ops::Index;
 use std::ops::IndexMut;
 
+use rand::RngCore;
 use rand::rng;
 
 use crate::bitboard::Bitboard;
