@@ -2,19 +2,10 @@ use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::fmt::Formatter;
-use std::ops::BitAnd;
-use std::ops::BitAndAssign;
-use std::ops::BitOr;
-use std::ops::BitOrAssign;
-use std::ops::Deref;
-use std::ops::DerefMut;
 use std::ops::Index;
 use std::ops::IndexMut;
-use std::ops::Not;
 
-use serde::Serialize;
-use serde::Serializer;
-
+use crate::mask::Mask;
 use crate::VikingChessResult;
 use crate::piece::Piece;
 use crate::square::Square;
@@ -25,6 +16,7 @@ pub struct Bitboard([Mask; Piece::Length as usize]);
 impl Bitboard {
     pub const BOARD_LENGTH: usize = 9;
     pub const TOTAL_SQUARES: usize = Bitboard::BOARD_LENGTH * Bitboard::BOARD_LENGTH;
+
 
     pub fn from_fen(str: &'static str) -> VikingChessResult<Self> {
         let mut bitboard = Self::default();
@@ -65,6 +57,31 @@ impl Bitboard {
         mask
     }
 
+    pub fn blockers(square: Square) -> Mask {
+        const COLUMNS: u128 = 0x1008040201008040201u128;
+        const ROWS: u128 = 0x1ff;
+        let cols = Mask(COLUMNS) | Mask(COLUMNS << 8);
+        let rows = Mask(ROWS) | Mask(ROWS << (9 * 8));
+        let corners = (1 << 0) | (1 << 8) | (1 << 72) | (1 << 80);
+        let mut potential_blockers = Self::moves(square) & !(cols | rows);
+
+        match (square.col, square.row) {
+            (0 | 8, 0 | 8) => {
+                potential_blockers |= Mask(COLUMNS & !corners);
+                potential_blockers |= Mask(ROWS & !corners);
+            },
+            (0 | 8, _) => {
+                potential_blockers |= Mask(COLUMNS & !corners & !square.mask().0);
+            },
+            (_, 0 | 8) => {
+                potential_blockers |= Mask(ROWS & !corners & !square.mask().0);
+            },
+            _ => {},
+        }
+
+        potential_blockers
+    }
+
     pub fn legal_moves(square: Square, blockers: Mask) -> Mask {
         let mut legal_moves = Mask(0);
         let rank = square.row;
@@ -93,7 +110,7 @@ impl Bitboard {
         for f in (file + 1)..9 {
             let current_square = Square::try_from((f, rank)).unwrap();
             if (blockers & current_square.mask()).0 != 0 {
-                break; 
+                break;
             }
 
             legal_moves |= current_square.mask();
@@ -111,74 +128,6 @@ impl Bitboard {
         }
 
         legal_moves
-    }
-}
-
-#[derive(Default, Debug, PartialEq, PartialOrd, Eq, Hash, Clone, Copy)]
-pub struct Mask(pub u128);
-
-impl Serialize for Mask {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.0.to_string())
-    }
-}
-
-impl Deref for Mask {
-    type Target = u128;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Mask {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl From<u128> for Mask {
-    fn from(value: u128) -> Self {
-        Self(value)
-    }
-}
-
-impl BitOr for Mask {
-    type Output = Mask;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        Mask(self.0 | rhs.0)
-    }
-}
-
-impl BitOrAssign for Mask {
-    fn bitor_assign(&mut self, rhs: Self) {
-        self.0 |= rhs.0;
-    }
-}
-
-impl Not for Mask {
-    type Output = Self;
-
-    fn not(self) -> Self::Output {
-        Mask(!self.0)
-    }
-}
-
-impl BitAnd for Mask {
-    type Output = Self;
-
-    fn bitand(self, rhs: Self) -> Self::Output {
-        Mask(self.0 & rhs.0)
-    }
-}
-
-impl BitAndAssign for Mask {
-    fn bitand_assign(&mut self, rhs: Self) {
-        self.0 &= rhs.0;
     }
 }
 

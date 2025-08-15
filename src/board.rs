@@ -5,7 +5,7 @@ use std::fmt::Formatter;
 use crate::VikingChessResult;
 use crate::bitboard::Bitboard;
 use crate::bitboard::BitboardIter;
-use crate::bitboard::Mask;
+use crate::mask::Mask;
 use crate::piece::Piece;
 use crate::square::Square;
 use crate::zobrist::ZobristTable;

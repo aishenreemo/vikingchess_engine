@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::VikingChessError;
 use crate::bitboard::Bitboard;
-use crate::bitboard::Mask;
+use crate::mask::Mask;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Serialize)]
 pub struct Square {
