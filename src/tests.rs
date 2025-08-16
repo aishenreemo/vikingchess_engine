@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use super::*;
 use crate::bitboard::Bitboard;
 use crate::board::Board;
+use crate::mask::Mask;
 use crate::piece::Piece;
 use crate::square::Square;
 use crate::zobrist::ZobristTable;
@@ -11,12 +12,12 @@ use crate::zobrist::ZobristTable;
 fn bitboard_test() -> VikingChessResult<()> {
     let mut board = Bitboard::default();
 
-    assert_eq!(board[Piece::King], 0);
-    assert_eq!(board[Piece::Defender], 0);
-    assert_eq!(board[Piece::Attacker], 0);
+    assert_eq!(board[Piece::King], Mask(0));
+    assert_eq!(board[Piece::Defender], Mask(0));
+    assert_eq!(board[Piece::Attacker], Mask(0));
 
     board[Piece::King] |= Square::try_from((4, 4))?.mask();
-    assert_eq!(board[Piece::King], 1 << 40);
+    assert_eq!(board[Piece::King], Mask(1 << 40));
     println!("Board:\n{board}");
     Ok(())
 }
@@ -34,11 +35,11 @@ fn zobrist_hash_update_test() -> VikingChessResult<()> {
     let initial_hash = board.zobrist_hash;
 
     println!("Board 1:\n{board}");
-    board.move_piece(Piece::King, 40.try_into()?, 0.try_into()?)?;
+    board.move_piece(Piece::Defender, 39.try_into()?, 30.try_into()?, None)?;
     assert_ne!(board.zobrist_hash, initial_hash);
     println!("Board 2:\n{board}");
 
-    board.move_piece(Piece::King, 0.try_into()?, 40.try_into()?)?;
+    board.move_piece(Piece::Defender, 30.try_into()?, 39.try_into()?, None)?;
     assert_eq!(board.zobrist_hash, initial_hash);
     println!("Board 3:\n{board}");
     Ok(())

@@ -2,6 +2,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use crate::magics::MagicTable;
 use crate::VikingChessResult;
 use crate::bitboard::Bitboard;
 use crate::bitboard::BitboardIter;
@@ -55,13 +56,34 @@ impl Board {
         hash
     }
 
-    pub fn move_piece(&mut self, piece: Piece, start_square: Square, end_square: Square) -> VikingChessResult<()> {
+    pub fn move_piece(
+        &mut self,
+        piece: Piece,
+        start_square: Square,
+        end_square: Square,
+        magic_table: Option<&MagicTable>,
+    ) -> VikingChessResult<()> {
         if self.bitboard[piece] & start_square.mask() <= Mask(0) {
             panic!("There is no {piece:?} in start_square {start_square:?}");
         }
 
-        if self.bitboard.all() & end_square.mask() > Mask(0) {
-            return Err(format!("There is already a {piece:?} in end_square {end_square:?}").into());
+        let blockers = Bitboard::moves(start_square) & self.bitboard.all();
+        let moves = match magic_table {
+            Some(magic_table) => {
+                let blockers = blockers & Bitboard::blockers(start_square);
+                let square_index = start_square.index();
+                let magic = magic_table.magics[square_index];
+                let shift = MagicTable::SHIFTS[square_index];
+                let index = Mask(blockers.wrapping_mul(magic.0) >> (128 - shift));
+                magic_table.moves[square_index][&index] & !self.bitboard.all()
+            }
+            None => {
+                Bitboard::legal_moves(start_square, blockers) 
+            }
+        };
+
+        if !moves & end_square.mask() > Mask(0) {
+            return Err(format!("Invalid move.").into());
         }
 
         self.bitboard[piece] &= !(start_square.mask());
