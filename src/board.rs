@@ -2,10 +2,10 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-use crate::magics::MagicTable;
 use crate::VikingChessResult;
 use crate::bitboard::Bitboard;
 use crate::bitboard::BitboardIter;
+use crate::magics::MagicTable;
 use crate::mask::Mask;
 use crate::piece::Piece;
 use crate::square::Square;
@@ -67,6 +67,14 @@ impl Board {
             panic!("There is no {piece:?} in start_square {start_square:?}");
         }
 
+        if (piece != Piece::King) && ((end_square.mask() & Mask::CORNER_MASK) > Mask(0)) {
+            return Err(format!("Pieces can't move to the corner besides the king.").into());
+        }
+
+        if end_square.mask() & Mask::THRONE_MASK > Mask(0) {
+            return Err(format!("No one can go to the throne.").into());
+        }
+
         let blockers = Bitboard::moves(start_square) & self.bitboard.all();
         let moves = match magic_table {
             Some(magic_table) => {
@@ -77,9 +85,7 @@ impl Board {
                 let index = Mask(blockers.wrapping_mul(magic.0) >> (128 - shift));
                 magic_table.moves[square_index][&index] & !self.bitboard.all()
             }
-            None => {
-                Bitboard::legal_moves(start_square, blockers) 
-            }
+            None => Bitboard::legal_moves(start_square, blockers),
         };
 
         if !moves & end_square.mask() > Mask(0) {

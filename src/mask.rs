@@ -16,6 +16,11 @@ use serde::Serializer;
 #[derive(Default, Debug, PartialEq, PartialOrd, Eq, Hash, Clone, Copy)]
 pub struct Mask(pub u128);
 
+impl Mask {
+    pub const CORNER_MASK: Mask = Mask(1 << 0 | 1 << (9 - 1) | 1 << (9 * 8) | 1 << (9 * 8 - 1));
+    pub const THRONE_MASK: Mask = Mask(1 << (9 * 4 + 4));
+}
+
 impl Serialize for Mask {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
