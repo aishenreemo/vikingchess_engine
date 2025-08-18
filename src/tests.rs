@@ -27,6 +27,7 @@ fn bitboard_test() -> VikingChessResult<()> {
 #[should_panic]
 fn bitboard_index_panic() {
     let board = Bitboard::default();
+    #[allow(clippy::no_effect)]
     board[Piece::Length];
 }
 

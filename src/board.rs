@@ -51,7 +51,7 @@ impl Board {
             action: None,
         };
 
-        let history = vec![state.clone()];
+        let history = vec![state];
 
         Ok(Self {
             bitboard,
@@ -117,14 +117,14 @@ impl Board {
         if !action.turn_valid(self.turn_mask()) {
             return Err(format!("{:?} does not have the current turn yet.", action.piece).into());
         } else if (action.piece != Piece::King) && ((action.to.mask() & Mask::CORNER_MASK) > Mask(0)) {
-            return Err(format!("Pieces can't move to the corner besides the king.").into());
+            return Err("Pieces can't move to the corner besides the king.".to_string().into());
         } else if action.to.mask() & Mask::THRONE_MASK > Mask(0) {
-            return Err(format!("No one can go to the throne.").into());
+            return Err("No one can go to the throne.".to_string().into());
         }
 
         let moves = self.moves(action.from, magic_table);
         if !moves & action.to.mask() > Mask(0) {
-            return Err(format!("Invalid move.").into());
+            return Err("Invalid move.".to_string().into());
         }
 
         self.bitboard[action.piece] &= !action.from.mask();
@@ -132,9 +132,9 @@ impl Board {
 
         self.state.zobrist_hash ^= self.zobrist_table[(action.piece, action.from)];
         self.state.zobrist_hash ^= self.zobrist_table[(action.piece, action.to)];
-        self.state.action = Some(action.clone());
+        self.state.action = Some(action);
         self.toggle_turn();
-        self.history.push(self.state.clone());
+        self.history.push(self.state);
 
         Ok(())
     }

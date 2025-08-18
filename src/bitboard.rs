@@ -42,7 +42,7 @@ impl Bitboard {
     }
 
     pub fn iter<'a>(&'a self) -> BitboardIter<'a> {
-        BitboardIter::new(&self)
+        BitboardIter::new(self)
     }
 
     pub fn all(&self) -> Mask {
@@ -52,9 +52,8 @@ impl Bitboard {
     pub fn moves(square: Square) -> Mask {
         let square_col_mask = Mask(0x1008040201008040201u128 << square.col);
         let square_row_mask = Mask(0x1ff << (9 * square.row));
-        let mask = (square_col_mask | square_row_mask) & !square.mask();
 
-        mask
+        (square_col_mask | square_row_mask) & !square.mask()
     }
 
     pub fn blockers(square: Square) -> Mask {
@@ -161,7 +160,7 @@ impl<'a> Iterator for BitboardIter<'a> {
         }
 
         self.counter += 1;
-        return Some((piece?, square));
+        Some((piece?, square))
     }
 }
 
@@ -176,7 +175,7 @@ impl Display for Bitboard {
                 _ => ".",
             };
 
-            write!(f, "{}", ch)?;
+            write!(f, "{ch}")?;
 
             if col + 1 == Bitboard::BOARD_LENGTH as u128 {
                 writeln!(f)?;
@@ -218,7 +217,7 @@ impl Display for Mask {
                 ch = "1";
             }
 
-            write!(f, "{}", ch)?;
+            write!(f, "{ch}")?;
 
             if col + 1 == Bitboard::BOARD_LENGTH as u128 {
                 writeln!(f)?;
@@ -231,7 +230,7 @@ impl Display for Mask {
 
 impl Debug for Bitboard {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Bitboard:\n{}", self)?;
+        writeln!(f, "Bitboard:\n{self}")?;
 
         for piece in Piece::PIECES.into_iter().map(Piece::from) {
             writeln!(f, "Mask {piece:?}:\n{}", self[piece])?;
