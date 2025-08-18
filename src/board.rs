@@ -15,6 +15,7 @@ pub struct Board {
     bitboard: Bitboard,
     zobrist_table: ZobristTable,
     pub zobrist_hash: u64,
+    turn: Piece,
 }
 
 impl Default for Board {
@@ -32,19 +33,34 @@ impl Board {
     }
 
     pub fn from_fen(str: &'static str) -> VikingChessResult<Self> {
-        let bitboard = Bitboard::from_fen(str)?;
+        let mut fen_iter = str.split(" ");
+        let bitboard = Bitboard::from_fen(fen_iter.next().expect("Invalid FEN; No state specified."))?;
         let zobrist_table = ZobristTable::new();
         let initial_hash = Board::calculate_hash(&bitboard, &zobrist_table);
+        let turn = match fen_iter.next() {
+            Some("B") => Piece::Attacker,
+            Some("W") => Piece::Defender,
+            x => panic!("Invalid FEN; Current turn is not specified. {x:?}"),
+        };
 
         Ok(Self {
             bitboard,
             zobrist_table,
             zobrist_hash: initial_hash,
+            turn,
         })
     }
 
     pub fn iter_bitboard<'a>(&'a self) -> BitboardIter<'a> {
         self.bitboard.iter()
+    }
+
+    pub fn turn_mask(&self) -> Mask {
+        match self.turn {
+            Piece::Attacker => self.bitboard[Piece::Attacker],
+            Piece::Defender => self.bitboard[Piece::Defender] | self.bitboard[Piece::King],
+            _ => panic!("Invalid current turn."),
+        }
     }
 
     fn calculate_hash(bitboard: &Bitboard, zobrist_table: &ZobristTable) -> u64 {
@@ -56,6 +72,14 @@ impl Board {
         hash
     }
 
+    fn toggle_turn(&mut self) {
+        self.turn = match self.turn {
+            Piece::Attacker => Piece::Defender,
+            Piece::Defender => Piece::Attacker,
+            _ => panic!("Invalid current turn."),
+        }
+    }
+
     pub fn move_piece(
         &mut self,
         piece: Piece,
@@ -65,6 +89,10 @@ impl Board {
     ) -> VikingChessResult<()> {
         if self.bitboard[piece] & start_square.mask() <= Mask(0) {
             panic!("There is no {piece:?} in start_square {start_square:?}");
+        }
+
+        if start_square.mask() & self.turn_mask() <= Mask(0) {
+            return Err(format!("{piece:?} does not have the current turn yet.").into());
         }
 
         if (piece != Piece::King) && ((end_square.mask() & Mask::CORNER_MASK) > Mask(0)) {
@@ -97,6 +125,7 @@ impl Board {
 
         self.zobrist_hash ^= self.zobrist_table[(piece, start_square)];
         self.zobrist_hash ^= self.zobrist_table[(piece, end_square)];
+        self.toggle_turn();
 
         Ok(())
     }
