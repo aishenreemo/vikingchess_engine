@@ -2,20 +2,22 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use crate::action::Action;
+use crate::square::Square;
 use crate::VikingChessResult;
 use crate::bitboard::Bitboard;
 use crate::bitboard::BitboardIter;
 use crate::magics::MagicTable;
 use crate::mask::Mask;
 use crate::piece::Piece;
-use crate::square::Square;
+use crate::state::State;
 use crate::zobrist::ZobristTable;
 
 pub struct Board {
     bitboard: Bitboard,
     zobrist_table: ZobristTable,
-    pub zobrist_hash: u64,
-    turn: Piece,
+    history: Vec<State>,
+    pub state: State,
 }
 
 impl Default for Board {
@@ -43,11 +45,19 @@ impl Board {
             x => panic!("Invalid FEN; Current turn is not specified. {x:?}"),
         };
 
+        let state = State {
+            zobrist_hash: initial_hash,
+            turn,
+            action: None,
+        };
+
+        let history = vec![state.clone()];
+
         Ok(Self {
             bitboard,
             zobrist_table,
-            zobrist_hash: initial_hash,
-            turn,
+            state,
+            history,
         })
     }
 
@@ -56,7 +66,7 @@ impl Board {
     }
 
     pub fn turn_mask(&self) -> Mask {
-        match self.turn {
+        match self.state.turn {
             Piece::Attacker => self.bitboard[Piece::Attacker],
             Piece::Defender => self.bitboard[Piece::Defender] | self.bitboard[Piece::King],
             _ => panic!("Invalid current turn."),
@@ -72,8 +82,23 @@ impl Board {
         hash
     }
 
+    fn moves(&self, square: Square, magic_table: Option<&MagicTable>) -> Mask {
+        let blockers = Bitboard::moves(square) & self.bitboard.all();
+        match magic_table {
+            Some(magic_table) => {
+                let blockers = blockers & Bitboard::blockers(square);
+                let square_index = square.index();
+                let magic = magic_table.magics[square_index];
+                let shift = MagicTable::SHIFTS[square_index];
+                let index = Mask(blockers.wrapping_mul(magic.0) >> (128 - shift));
+                magic_table.moves[square_index][&index] & !self.bitboard.all()
+            }
+            None => Bitboard::legal_moves(square, blockers),
+        }
+    }
+
     fn toggle_turn(&mut self) {
-        self.turn = match self.turn {
+        self.state.turn = match self.state.turn {
             Piece::Attacker => Piece::Defender,
             Piece::Defender => Piece::Attacker,
             _ => panic!("Invalid current turn."),
@@ -82,50 +107,34 @@ impl Board {
 
     pub fn move_piece(
         &mut self,
-        piece: Piece,
-        start_square: Square,
-        end_square: Square,
+        action: Action,
         magic_table: Option<&MagicTable>,
     ) -> VikingChessResult<()> {
-        if self.bitboard[piece] & start_square.mask() <= Mask(0) {
-            panic!("There is no {piece:?} in start_square {start_square:?}");
+        if !action.valid(&self.bitboard) {
+            panic!("There is no {:?} in start_square {:?}", action.piece, action.from);
         }
 
-        if start_square.mask() & self.turn_mask() <= Mask(0) {
-            return Err(format!("{piece:?} does not have the current turn yet.").into());
-        }
-
-        if (piece != Piece::King) && ((end_square.mask() & Mask::CORNER_MASK) > Mask(0)) {
+        if !action.turn_valid(self.turn_mask()) {
+            return Err(format!("{:?} does not have the current turn yet.", action.piece).into());
+        } else if (action.piece != Piece::King) && ((action.to.mask() & Mask::CORNER_MASK) > Mask(0)) {
             return Err(format!("Pieces can't move to the corner besides the king.").into());
-        }
-
-        if end_square.mask() & Mask::THRONE_MASK > Mask(0) {
+        } else if action.to.mask() & Mask::THRONE_MASK > Mask(0) {
             return Err(format!("No one can go to the throne.").into());
         }
 
-        let blockers = Bitboard::moves(start_square) & self.bitboard.all();
-        let moves = match magic_table {
-            Some(magic_table) => {
-                let blockers = blockers & Bitboard::blockers(start_square);
-                let square_index = start_square.index();
-                let magic = magic_table.magics[square_index];
-                let shift = MagicTable::SHIFTS[square_index];
-                let index = Mask(blockers.wrapping_mul(magic.0) >> (128 - shift));
-                magic_table.moves[square_index][&index] & !self.bitboard.all()
-            }
-            None => Bitboard::legal_moves(start_square, blockers),
-        };
-
-        if !moves & end_square.mask() > Mask(0) {
+        let moves = self.moves(action.from, magic_table);
+        if !moves & action.to.mask() > Mask(0) {
             return Err(format!("Invalid move.").into());
         }
 
-        self.bitboard[piece] &= !(start_square.mask());
-        self.bitboard[piece] |= end_square.mask();
+        self.bitboard[action.piece] &= !action.from.mask();
+        self.bitboard[action.piece] |= action.to.mask();
 
-        self.zobrist_hash ^= self.zobrist_table[(piece, start_square)];
-        self.zobrist_hash ^= self.zobrist_table[(piece, end_square)];
+        self.state.zobrist_hash ^= self.zobrist_table[(action.piece, action.from)];
+        self.state.zobrist_hash ^= self.zobrist_table[(action.piece, action.to)];
+        self.state.action = Some(action.clone());
         self.toggle_turn();
+        self.history.push(self.state.clone());
 
         Ok(())
     }

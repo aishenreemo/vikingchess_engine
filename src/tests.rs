@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use super::*;
+use crate::action::Action;
 use crate::bitboard::Bitboard;
 use crate::board::Board;
 use crate::mask::Mask;
@@ -32,15 +33,19 @@ fn bitboard_index_panic() {
 #[test]
 fn zobrist_hash_update_test() -> VikingChessResult<()> {
     let mut board = Board::new();
-    let initial_hash = board.zobrist_hash;
+    let initial_hash = board.state.zobrist_hash;
 
     println!("Board 1:\n{board}");
-    board.move_piece(Piece::Defender, 39.try_into()?, 30.try_into()?, None)?;
-    assert_ne!(board.zobrist_hash, initial_hash);
-    println!("Board 2:\n{board}");
+    let action = Action::new(Piece::Defender, 39.try_into()?, 30.try_into()?);
+    board.state.turn = Piece::Defender;
+    board.move_piece(action, None)?;
+    assert_ne!(board.state.zobrist_hash, initial_hash);
 
-    board.move_piece(Piece::Defender, 30.try_into()?, 39.try_into()?, None)?;
-    assert_eq!(board.zobrist_hash, initial_hash);
+    println!("Board 2:\n{board}");
+    let action = Action::new(Piece::Defender, 30.try_into()?, 39.try_into()?);
+    board.state.turn = Piece::Defender;
+    board.move_piece(action, None)?;
+    assert_eq!(board.state.zobrist_hash, initial_hash);
     println!("Board 3:\n{board}");
     Ok(())
 }

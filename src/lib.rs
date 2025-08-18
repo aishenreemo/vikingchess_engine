@@ -3,12 +3,14 @@ use std::error::Error;
 pub type VikingChessError = Box<dyn Error>;
 pub type VikingChessResult<T> = Result<T, VikingChessError>;
 
+mod action;
 mod bitboard;
 mod board;
 mod magics;
 mod mask;
 mod piece;
 mod square;
+mod state;
 mod zobrist;
 
 #[cfg(test)]
@@ -21,4 +23,5 @@ pub mod prelude {
     pub use crate::mask::Mask;
     pub use crate::piece::Piece;
     pub use crate::square::Square;
+    pub use crate::action::Action;
 }
