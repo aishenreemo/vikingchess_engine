@@ -9,6 +9,14 @@ pub enum Piece {
 
 impl Piece {
     pub const PIECES: [char; 3] = ['A', 'D', 'K'];
+    pub fn opposite(&self) -> Piece {
+        match self {
+            Piece::King => Piece::Attacker,
+            Piece::Defender => Piece::Attacker,
+            Piece::Attacker => Piece::Defender,
+            _ => panic!("Invalid piece!"),
+        }
+    }
 }
 
 impl From<char> for Piece {
