@@ -19,7 +19,6 @@ fn bitboard_test() -> VikingChessResult<()> {
 
     board[Piece::King] |= Square::try_from((4, 4))?.mask();
     assert_eq!(board[Piece::King], Mask(1 << 40));
-    println!("Board:\n{board}");
     Ok(())
 }
 
@@ -27,8 +26,7 @@ fn bitboard_test() -> VikingChessResult<()> {
 #[should_panic]
 fn bitboard_index_panic() {
     let board = Bitboard::default();
-    #[allow(clippy::no_effect)]
-    board[Piece::Length];
+    let _ = board[Piece::Length];
 }
 
 #[test]
@@ -36,18 +34,15 @@ fn zobrist_hash_update_test() -> VikingChessResult<()> {
     let mut board = Board::new();
     let initial_hash = board.state.zobrist_hash;
 
-    println!("Board 1:\n{board}");
     let action = Action::new(Piece::Defender, 39.try_into()?, 30.try_into()?);
     board.state.turn = Piece::Defender;
     board.move_piece(action, None)?;
     assert_ne!(board.state.zobrist_hash, initial_hash);
 
-    println!("Board 2:\n{board}");
     let action = Action::new(Piece::Defender, 30.try_into()?, 39.try_into()?);
     board.state.turn = Piece::Defender;
     board.move_piece(action, None)?;
     assert_eq!(board.state.zobrist_hash, initial_hash);
-    println!("Board 3:\n{board}");
     Ok(())
 }
 
@@ -90,7 +85,7 @@ fn square_from_tuple_test() -> VikingChessResult<()> {
 }
 
 #[test]
-fn test_bitboard_iter() -> VikingChessResult<()> {
+fn bitboard_iter_test() -> VikingChessResult<()> {
     let mut bitboard = Bitboard::default();
     let squares = [
         Square::try_from((4, 4))?,
@@ -107,5 +102,36 @@ fn test_bitboard_iter() -> VikingChessResult<()> {
     assert_eq!(iter.next(), Some((Piece::King, squares[0])));
     assert_eq!(iter.next(), Some((Piece::Defender, squares[2])));
     assert_eq!(iter.next(), None);
+    Ok(())
+}
+
+#[test]
+fn square_adjacent_test() -> VikingChessResult<()> {
+    let squares = [
+        Square::try_from((4, 4))?,
+        Square::try_from((0, 0))?,
+        Square::try_from((8, 8))?,
+    ];
+
+    #[rustfmt::skip]
+    let adjacent_masks = [
+        Mask(565700879974400),
+        Mask(514),
+        Mask(606824093048749409959936)
+    ];
+
+    #[rustfmt::skip]
+    let interjacent_mask = [
+        Mask(288235049080324096),
+        Mask(262148),
+        Mask(302236066589675721064448)
+    ];
+
+    let iter = squares.iter().zip(adjacent_masks.iter().zip(interjacent_mask.iter()));
+    for (square, (adjacent_mask, interjacent_mask)) in iter {
+        assert_eq!(&square.adjacent_mask(), adjacent_mask);
+        assert_eq!(&square.interjacent_mask(), interjacent_mask);
+    }
+
     Ok(())
 }

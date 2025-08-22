@@ -22,6 +22,28 @@ impl Square {
     pub fn mask(&self) -> Mask {
         Mask(1 << self.index())
     }
+
+    pub fn adjacent_mask(&self) -> Mask {
+        const LENGTH: i8 = Bitboard::BOARD_LENGTH as i8;
+
+        [1, 3, 5, 7]
+            .into_iter()
+            .map(|k| (k / 3 - 1 + self.row as i8, k % 3 - 1 + self.col as i8))
+            .filter(|(r, c)| (0..LENGTH).contains(r) && (0..LENGTH).contains(c))
+            .fold(0, |a, (r, c)| a | 1 << (r * LENGTH + c))
+            .into()
+    }
+
+    pub fn interjacent_mask(&self) -> Mask {
+        const LENGTH: i8 = Bitboard::BOARD_LENGTH as i8;
+
+        [2, 10, 14, 22]
+            .into_iter()
+            .map(|k| (k / 5 - 2 + self.row as i8, k % 5 - 2 + self.col as i8))
+            .filter(|(r, c)| (0..LENGTH).contains(r) && (0..LENGTH).contains(c))
+            .fold(0, |a, (r, c)| a | 1 << (r * LENGTH + c))
+            .into()
+    }
 }
 
 impl TryFrom<(u8, u8)> for Square {
