@@ -17,7 +17,7 @@ use serde::Serializer;
 pub struct Mask(pub u128);
 
 impl Mask {
-    pub const CORNER_MASK: Mask = Mask(1 << 0 | 1 << (9 - 1) | 1 << (9 * 8) | 1 << (9 * 8 - 1));
+    pub const CORNER_MASK: Mask = Mask(1 << 0 | 1 << (9 - 1) | 1 << (9 * 8) | 1 << (9 * 9 - 1));
     pub const THRONE_MASK: Mask = Mask(1 << (9 * 4 + 4));
 }
 
