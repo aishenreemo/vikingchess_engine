@@ -135,3 +135,114 @@ fn square_adjacent_test() -> VikingChessResult<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_legal_moves_no_blockers() {
+    let blockers = Mask(0);
+    let start_square = Square::try_from((4, 4)).unwrap();
+    let legal_moves = Bitboard::legal_moves(start_square, blockers);
+
+    let mut expected_moves = Mask(0);
+    for r in 5..9 {
+        expected_moves |= Square::try_from((4, r)).unwrap().mask();
+    }
+    for r in 0..4 {
+        expected_moves |= Square::try_from((4, r)).unwrap().mask();
+    }
+    for f in 5..9 {
+        expected_moves |= Square::try_from((f, 4)).unwrap().mask();
+    }
+    for f in 0..4 {
+        expected_moves |= Square::try_from((f, 4)).unwrap().mask();
+    }
+
+    assert_eq!(legal_moves, expected_moves, "No blockers on a central square");
+    assert_eq!(legal_moves.0.count_ones(), 16, "Expected 16 legal moves with no blockers");
+}
+
+#[test]
+fn test_legal_moves_with_blocker_up() {
+    let blocker_square = Square::try_from((4, 6)).unwrap();
+    let blockers = blocker_square.mask();
+    let start_square = Square::try_from((4, 4)).unwrap();
+    let legal_moves = Bitboard::legal_moves(start_square, blockers);
+
+    let mut expected_moves = Mask(0);
+    for r in 5..6 {
+        expected_moves |= Square::try_from((4, r)).unwrap().mask();
+    }
+    for r in 0..4 {
+        expected_moves |= Square::try_from((4, r)).unwrap().mask();
+    }
+    for f in 5..9 {
+        expected_moves |= Square::try_from((f, 4)).unwrap().mask();
+    }
+    for f in 0..4 {
+        expected_moves |= Square::try_from((f, 4)).unwrap().mask();
+    }
+
+    assert_eq!(legal_moves, expected_moves, "Blocked by a piece on row 6");
+    assert_eq!(legal_moves.0.count_ones(), 13, "Expected 13 legal moves");
+}
+
+#[test]
+fn test_legal_moves_with_multiple_blockers() {
+    let blocker1_square = Square::try_from((4, 6)).unwrap();
+    let blocker2_square = Square::try_from((2, 4)).unwrap();
+    let blockers = blocker1_square.mask() | blocker2_square.mask();
+    let start_square = Square::try_from((4, 4)).unwrap();
+    let legal_moves = Bitboard::legal_moves(start_square, blockers);
+
+    let mut expected_moves = Mask(0);
+    expected_moves |= Square::try_from((3, 4)).unwrap().mask();
+    expected_moves |= Square::try_from((4, 5)).unwrap().mask();
+    for r in 0..4 {
+        expected_moves |= Square::try_from((4, r)).unwrap().mask();
+    }
+    for f in 5..9 {
+        expected_moves |= Square::try_from((f, 4)).unwrap().mask();
+    }
+
+    assert_eq!(legal_moves, expected_moves, "Blocked by two pieces");
+    assert_eq!(legal_moves.0.count_ones(), 10, "Expected 10 legal moves");
+}
+
+#[test]
+fn test_legal_moves_edge_case_corner() {
+    let blockers = Mask(0);
+    let start_square = Square::try_from((0, 0)).unwrap();
+    let legal_moves = Bitboard::legal_moves(start_square, blockers);
+
+    let mut expected_moves = Mask(0);
+    for f in 1..9 {
+        expected_moves |= Square::try_from((f, 0)).unwrap().mask();
+    }
+    for r in 1..9 {
+        expected_moves |= Square::try_from((0, r)).unwrap().mask();
+    }
+
+
+    assert_eq!(legal_moves, expected_moves, "No blockers on a corner square");
+    assert_eq!(legal_moves.0.count_ones(), 16, "Expected 16 legal moves");
+}
+
+#[test]
+fn test_legal_moves_edge_case_side() {
+    let blockers = Mask(0);
+    let start_square = Square::try_from((0, 4)).unwrap();
+    let legal_moves = Bitboard::legal_moves(start_square, blockers);
+
+    let mut expected_moves = Mask(0);
+    for f in 1..9 {
+        expected_moves |= Square::try_from((f, 4)).unwrap().mask();
+    }
+    for r in 0..4 {
+        expected_moves |= Square::try_from((0, r)).unwrap().mask();
+    }
+    for r in 5..9 {
+        expected_moves |= Square::try_from((0, r)).unwrap().mask();
+    }
+
+    assert_eq!(legal_moves, expected_moves, "No blockers on a side square");
+    assert_eq!(legal_moves.0.count_ones(), 16, "Expected 16 legal moves");
+}

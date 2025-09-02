@@ -86,45 +86,15 @@ impl Bitboard {
         let rank = square.row;
         let file = square.col;
 
-        for r in (rank + 1)..9 {
-            let current_square = Square::try_from((file, r)).unwrap();
-            if (blockers & current_square.mask()).0 != 0 {
-                break;
-            }
+        let rank_into_square = |r: u8| Square::try_from((file, r)).unwrap();
+        let file_into_square = |f: u8| Square::try_from((f, rank)).unwrap();
+        let predicate = |s: &Square| (blockers & s.mask()).0 == 0;
+        let fold = |a: Mask, b: Square| a | b.mask();
 
-            legal_moves |= current_square.mask();
-        }
-
-        if rank > 0 {
-            for r in (0..rank).rev() {
-                let current_square = Square::try_from((file, r)).unwrap();
-                if (blockers & current_square.mask()).0 != 0 {
-                    break;
-                }
-
-                legal_moves |= current_square.mask();
-            }
-        }
-
-        for f in (file + 1)..9 {
-            let current_square = Square::try_from((f, rank)).unwrap();
-            if (blockers & current_square.mask()).0 != 0 {
-                break;
-            }
-
-            legal_moves |= current_square.mask();
-        }
-
-        if file > 0 {
-            for f in (0..file).rev() {
-                let current_square = Square::try_from((f, rank)).unwrap();
-                if (blockers & current_square.mask()).0 != 0 {
-                    break;
-                }
-
-                legal_moves |= current_square.mask();
-            }
-        }
+        legal_moves |= ((rank + 1)..9).map(rank_into_square).take_while(predicate).fold(Mask(0), fold);
+        legal_moves |= (0..rank).rev().map(rank_into_square).take_while(predicate).fold(Mask(0), fold);
+        legal_moves |= ((file + 1)..9).map(file_into_square).take_while(predicate).fold(Mask(0), fold);
+        legal_moves |= (0..file).rev().map(file_into_square).take_while(predicate).fold(Mask(0), fold);
 
         legal_moves
     }
