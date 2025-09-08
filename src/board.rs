@@ -2,14 +2,14 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-use crate::action::Action;
-use crate::square::Square;
 use crate::VikingChessResult;
+use crate::action::Action;
 use crate::bitboard::Bitboard;
 use crate::bitboard::BitboardIter;
 use crate::magics::MagicTable;
 use crate::mask::Mask;
 use crate::piece::Piece;
+use crate::square::Square;
 use crate::state::State;
 use crate::zobrist::ZobristTable;
 
@@ -97,19 +97,7 @@ impl Board {
         }
     }
 
-    fn toggle_turn(&mut self) {
-        self.state.turn = match self.state.turn {
-            Piece::Attacker => Piece::Defender,
-            Piece::Defender => Piece::Attacker,
-            _ => panic!("Invalid current turn."),
-        }
-    }
-
-    pub fn move_piece(
-        &mut self,
-        action: Action,
-        magic_table: Option<&MagicTable>,
-    ) -> VikingChessResult<()> {
+    pub fn move_piece(&mut self, action: Action, magic_table: Option<&MagicTable>) -> VikingChessResult<()> {
         if !action.valid(&self.bitboard) {
             panic!("There is no {:?} in start_square {:?}", action.piece, action.from);
         }
@@ -127,21 +115,105 @@ impl Board {
             return Err("Invalid move.".to_string().into());
         }
 
-        self.bitboard[action.piece] &= !action.from.mask();
-        self.bitboard[action.piece] |= action.to.mask();
-
-        self.state.zobrist_hash ^= self.zobrist_table[(action.piece, action.from)];
-        self.state.zobrist_hash ^= self.zobrist_table[(action.piece, action.to)];
+        self.remove_piece(action.piece, action.from);
+        self.add_piece(action.piece, action.to);
         self.state.action = Some(action);
-        self.toggle_turn();
-        self.history.push(self.state);
-
         Ok(())
+    }
+
+    pub fn remove_piece(&mut self, piece: Piece, square: Square) {
+        self.bitboard[piece] &= !square.mask();
+        self.state.zobrist_hash ^= self.zobrist_table[(piece, square)];
+    }
+
+    pub fn add_piece(&mut self, piece: Piece, square: Square) {
+        self.bitboard[piece] |= square.mask();
+        self.state.zobrist_hash ^= self.zobrist_table[(piece, square)];
+    }
+
+    pub fn eliminated_pieces_iter(&self) -> EliminatedPiecesIter {
+        let Some(action) = self.state.action else {
+            panic!("Move a piece first.");
+        };
+
+        EliminatedPiecesIter {
+            counter: 0,
+            bitboard: &self.bitboard,
+            killer: (action.piece, action.to),
+        }
+    }
+
+    pub fn toggle_turn(&mut self) {
+        self.state.turn = match self.state.turn {
+            Piece::Attacker => Piece::Defender,
+            Piece::Defender => Piece::Attacker,
+            _ => panic!("Invalid current turn."),
+        }
+    }
+
+    pub fn save(&mut self) {
+        self.history.push(self.state);
     }
 }
 
 impl Display for Board {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.bitboard)
+    }
+}
+
+pub struct EliminatedPiecesIter<'a> {
+    counter: usize,
+    killer: (Piece, Square),
+    bitboard: &'a Bitboard,
+}
+
+impl<'a> Iterator for EliminatedPiecesIter<'a> {
+    type Item = (Piece, Square);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        const OFFSETS: [(i8, i8); 4] = [(2, 7), (10, 11), (14, 13), (22, 17)];
+
+        use Piece::*;
+        let opposite = self.killer.0.opposite();
+        let [ally_mask, enemy_mask] = match opposite {
+            Piece::Defender => [self.bitboard[Attacker], self.bitboard[Defender] | self.bitboard[King]],
+            Piece::Attacker => [self.bitboard[Defender] | self.bitboard[King], self.bitboard[Attacker]],
+            _ => unreachable!(),
+        };
+
+        while self.counter < OFFSETS.len() {
+            let (ally_offset, enemy_offset) = OFFSETS[self.counter];
+            let ally_pos = self.killer.1.try_from_offset(ally_offset);
+            let enemy_pos = self.killer.1.try_from_offset(enemy_offset);
+
+            if ally_pos.is_err() || enemy_pos.is_err() {
+                self.counter += 1;
+                continue;
+            }
+
+            let ally_pos = ally_pos.unwrap();
+            let enemy_pos = enemy_pos.unwrap();
+
+            let is_ally_present = ally_pos.mask() & ally_mask > Mask(0);
+            let is_enemy_present = enemy_pos.mask() & enemy_mask > Mask(0);
+            let is_enemy_not_king = self.bitboard[Defender] & enemy_pos.mask() > Mask(0);
+
+            if !is_ally_present || !is_enemy_present {
+                self.counter += 1;
+                continue;
+            }
+
+            let enemy_piece = match [opposite == Attacker, is_enemy_not_king] {
+                [true, false] => Attacker,
+                [false, true] => Defender,
+                _ => King
+            };
+
+            self.counter += 1;
+            return Some((enemy_piece, enemy_pos));
+        }
+
+        None
     }
 }

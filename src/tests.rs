@@ -106,38 +106,7 @@ fn bitboard_iter_test() -> VikingChessResult<()> {
 }
 
 #[test]
-fn square_adjacent_test() -> VikingChessResult<()> {
-    let squares = [
-        Square::try_from((4, 4))?,
-        Square::try_from((0, 0))?,
-        Square::try_from((8, 8))?,
-    ];
-
-    #[rustfmt::skip]
-    let adjacent_masks = [
-        Mask(565700879974400),
-        Mask(514),
-        Mask(606824093048749409959936)
-    ];
-
-    #[rustfmt::skip]
-    let interjacent_mask = [
-        Mask(288235049080324096),
-        Mask(262148),
-        Mask(302236066589675721064448)
-    ];
-
-    let iter = squares.iter().zip(adjacent_masks.iter().zip(interjacent_mask.iter()));
-    for (square, (adjacent_mask, interjacent_mask)) in iter {
-        assert_eq!(&square.adjacent_mask(), adjacent_mask);
-        assert_eq!(&square.interjacent_mask(), interjacent_mask);
-    }
-
-    Ok(())
-}
-
-#[test]
-fn test_legal_moves_no_blockers() {
+fn legal_moves_no_blockers_test() {
     let blockers = Mask(0);
     let start_square = Square::try_from((4, 4)).unwrap();
     let legal_moves = Bitboard::legal_moves(start_square, blockers);
@@ -161,7 +130,7 @@ fn test_legal_moves_no_blockers() {
 }
 
 #[test]
-fn test_legal_moves_with_blocker_up() {
+fn legal_moves_with_blocker_up_test() {
     let blocker_square = Square::try_from((4, 6)).unwrap();
     let blockers = blocker_square.mask();
     let start_square = Square::try_from((4, 4)).unwrap();
@@ -186,7 +155,7 @@ fn test_legal_moves_with_blocker_up() {
 }
 
 #[test]
-fn test_legal_moves_with_multiple_blockers() {
+fn legal_moves_with_multiple_blockers_test() {
     let blocker1_square = Square::try_from((4, 6)).unwrap();
     let blocker2_square = Square::try_from((2, 4)).unwrap();
     let blockers = blocker1_square.mask() | blocker2_square.mask();
@@ -208,7 +177,7 @@ fn test_legal_moves_with_multiple_blockers() {
 }
 
 #[test]
-fn test_legal_moves_edge_case_corner() {
+fn legal_moves_edge_case_corner_test() {
     let blockers = Mask(0);
     let start_square = Square::try_from((0, 0)).unwrap();
     let legal_moves = Bitboard::legal_moves(start_square, blockers);
@@ -227,7 +196,7 @@ fn test_legal_moves_edge_case_corner() {
 }
 
 #[test]
-fn test_legal_moves_edge_case_side() {
+fn legal_moves_edge_case_side_test() {
     let blockers = Mask(0);
     let start_square = Square::try_from((0, 4)).unwrap();
     let legal_moves = Bitboard::legal_moves(start_square, blockers);

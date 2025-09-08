@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::VikingChessError;
+use crate::{VikingChessError, VikingChessResult};
 use crate::bitboard::Bitboard;
 use crate::mask::Mask;
 
@@ -23,26 +23,11 @@ impl Square {
         Mask(1 << self.index())
     }
 
-    pub fn adjacent_mask(&self) -> Mask {
-        const LENGTH: i8 = Bitboard::BOARD_LENGTH as i8;
-
-        [1, 3, 5, 7]
-            .into_iter()
-            .map(|k| (k / 3 - 1 + self.row as i8, k % 3 - 1 + self.col as i8))
-            .filter(|(r, c)| (0..LENGTH).contains(r) && (0..LENGTH).contains(c))
-            .fold(0, |a, (r, c)| a | 1 << (r * LENGTH + c))
-            .into()
-    }
-
-    pub fn interjacent_mask(&self) -> Mask {
-        const LENGTH: i8 = Bitboard::BOARD_LENGTH as i8;
-
-        [2, 10, 14, 22]
-            .into_iter()
-            .map(|k| (k / 5 - 2 + self.row as i8, k % 5 - 2 + self.col as i8))
-            .filter(|(r, c)| (0..LENGTH).contains(r) && (0..LENGTH).contains(c))
-            .fold(0, |a, (r, c)| a | 1 << (r * LENGTH + c))
-            .into()
+    pub fn try_from_offset(&self, offset: i8) -> VikingChessResult<Self> {
+        Self::try_from((
+            (offset % 5 - 2 + self.col as i8) as f32,
+            (offset / 5 - 2 + self.row as i8) as f32,
+        ))
     }
 }
 

@@ -1,3 +1,5 @@
+#![feature(iter_array_chunks)]
+
 use std::error::Error;
 
 pub type VikingChessError = Box<dyn Error>;
