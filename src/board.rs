@@ -138,6 +138,14 @@ impl Board {
 
         Ok(())
     }
+
+    pub fn is_winner(&self, piece: Piece) -> bool {
+        match piece {
+            Piece::Attacker => self.bitboard[Piece::King] == Mask(0),
+            Piece::Defender | Piece::King => self.bitboard[Piece::King] & Mask::CORNER_MASK > Mask(0),
+            _ => false,
+        }
+    }
 }
 
 impl Display for Board {
